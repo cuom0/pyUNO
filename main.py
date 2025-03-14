@@ -1,16 +1,17 @@
 import customtkinter as ctk
 from PIL import Image
 import webbrowser  
-import game 
+import game
 
 
 homescreen = ctk.CTk()
 homescreen.geometry("1000x600")
 ctk.set_default_color_theme("dark-blue")
+
 homescreen.configure(fg_color="#094c7d")
 homescreen.title("pyUNO")
-homescreen.resizable(0, 0)
-
+def show_frame(frame): # A function to show a frame and hide the others
+    frame.tkraise()
 
 for i in range(4): # Configuring the grid layout
     homescreen.grid_columnconfigure(i, weight=1)
@@ -23,12 +24,12 @@ def close_program():
     
 def start_game():
     homescreen.destroy()
-    game.start_game()
+    
 
 def open_github():
     webbrowser.open("https://github.com/cuom0")
-
 # Home Frame
+
 home_frame = ctk.CTkFrame(homescreen, fg_color="transparent", width=1000, height=600)
 home_frame.grid(row=0, column=0, sticky="nsew")
 
@@ -53,6 +54,7 @@ bgcardslabel = ctk.CTkLabel(home_frame, image=bgcards, text="")
 bgcardslabel.grid(row=0, column=3, rowspan=4, padx=(20, 50), pady=50, sticky="e")
 
 # Frame Credits
+
 credit_frame = ctk.CTkFrame(homescreen, fg_color="transparent", width=1000, height=600)
 credit_frame.grid(row=0, column=0, sticky="nsew")
 
