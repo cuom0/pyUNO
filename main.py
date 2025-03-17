@@ -21,6 +21,7 @@ def close_program():
 def start_game():
     game_frame = ctk.CTkFrame(homescreen, fg_color="transparent", width=1000, height=600)
     game_frame.grid(row=0, column=0, sticky="nsew")
+    
     show_frame(game_frame)
 
 def open_github():
