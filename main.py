@@ -9,19 +9,83 @@ homescreen.resizable(False, False)
 homescreen.configure(fg_color="#094c7d")
 homescreen.title("pyUNO")
 
-def show_frame(frame): # A function to show a frame and hide the others
+def show_frame(frame): 
     frame.tkraise()
 
-for i in range(4): # Configuring the grid layout, weight is set to 1 so the widgets will resize with the window
+for i in range(4): 
     homescreen.grid_columnconfigure(i, weight=1)
 
 def close_program():
     homescreen.destroy()
     
-def start_game():
-    game_frame = ctk.CTkFrame(homescreen, fg_color="transparent", width=1000, height=600)
+def start_game(): #Da fixare le tre CPU nell'UI
+    game_frame = ctk.CTkFrame(homescreen, fg_color="#3b09c3")
     game_frame.grid(row=0, column=0, sticky="nsew")
     
+    game_frame.grid_rowconfigure(0, weight=1)  
+    game_frame.grid_rowconfigure(1, weight=0)  
+    game_frame.grid_rowconfigure(2, weight=0)  
+    game_frame.grid_rowconfigure(3, weight=0)  
+    
+    game_frame.grid_columnconfigure(0, weight=1)
+    game_frame.grid_columnconfigure(1, weight=1)
+    game_frame.grid_columnconfigure(2, weight=1)
+    
+    card_holder = ctk.CTkScrollableFrame(game_frame, width=600, height=100, orientation="horizontal")
+    card_holder.grid(row=3, column=1, padx=5, pady=5, sticky="nsew")
+
+    uno_yell = ctk.CTkButton(game_frame, height=100, font=("Impact", 65), text="UNO!", fg_color="#d226e5", hover_color="#8e199b", state="disabled")
+    uno_yell.grid(row=3, column=2, padx=5, pady=0.5, sticky="we")
+
+   
+    ai1_img = ctk.CTkImage(light_image=Image.open("./media/home/githubpfp.jpg"), 
+                            dark_image=Image.open("./media/home/githubpfp.jpg"),
+                            size=(50, 50))  
+    ai1_label_img = ctk.CTkLabel(game_frame, image=ai1_img)
+    ai1_label_img.grid(row=0, column=1, pady=10, sticky="n")  
+    
+    ai1_name = ctk.CTkLabel(game_frame, text="AI Player 1", font=("Arial", 20), text_color="white")
+    ai1_name.grid(row=1, column=1, pady=5, sticky="n")
+    
+    ai1_cards = ctk.CTkLabel(game_frame, text="x 7 Cards", font=("Arial", 15), text_color="white")
+    ai1_cards.grid(row=2, column=1, pady=5, sticky="n")
+
+    ai1_button = ctk.CTkButton(game_frame, text="Challenge UNO", font=("Arial", 15), width=200, height=40, corner_radius=10, state="disabled")
+    ai1_button.grid(row=3, column=1, pady=10, sticky="n")
+
+
+    ai2_img = ctk.CTkImage(light_image=Image.open("./media/home/githubpfp.jpg"), 
+                            dark_image=Image.open("./media/home/githubpfp.jpg"),
+                            size=(50, 50)) 
+    ai2_label_img = ctk.CTkLabel(game_frame, image=ai2_img)
+    ai2_label_img.grid(row=1, column=0, pady=10, sticky="e") 
+    
+    ai2_name = ctk.CTkLabel(game_frame, text="AI Player 2", font=("Arial", 20), text_color="white")
+    ai2_name.grid(row=2, column=0, pady=5, sticky="n")
+    
+    ai2_cards = ctk.CTkLabel(game_frame, text="x 5 Cards", font=("Arial", 15), text_color="white")
+    ai2_cards.grid(row=3, column=0, pady=5, sticky="n")
+
+    ai2_button = ctk.CTkButton(game_frame, text="Challenge UNO", font=("Arial", 15), width=200, height=40, corner_radius=10, state="disabled")
+    ai2_button.grid(row=4, column=0, pady=10, sticky="n")
+
+
+    ai3_img = ctk.CTkImage(light_image=Image.open("./media/home/githubpfp.jpg"), 
+                            dark_image=Image.open("./media/home/githubpfp.jpg"),
+                            size=(50, 50)) 
+    ai3_label_img = ctk.CTkLabel(game_frame, image=ai3_img)
+    ai3_label_img.grid(row=1, column=2, pady=10, sticky="w")  
+    
+    ai3_name = ctk.CTkLabel(game_frame, text="AI Player 3", font=("Arial", 20), text_color="white")
+    ai3_name.grid(row=2, column=2, pady=5, sticky="n")
+    
+    ai3_cards = ctk.CTkLabel(game_frame, text="x 9 Cards", font=("Arial", 15), text_color="white")
+    ai3_cards.grid(row=3, column=2, pady=5, sticky="n")
+
+    ai3_button = ctk.CTkButton(game_frame, text="Challenge UNO", font=("Arial", 15), width=200, height=40, corner_radius=10, state="disabled")
+    ai3_button.grid(row=4, column=2, pady=10, sticky="n")
+
+   
     show_frame(game_frame)
 
 def open_github():
