@@ -249,10 +249,16 @@ class GameManager:
             current_ai = self.current_player - 1  # Convert to 0-based index for ai_hands
             ai_hand = self.ai_hands[current_ai]
             
-            # Check if deck is empty and needs reshuffling
+            # Check for win condition first
+            if len(ai_hand) == 0:
+                # AI number is 1 or 2 based on current_ai index (0 or 1)
+                self.ai_won(current_ai + 1)
+                return
+                
+            # Check if deck needs reshuffling
             if not self.deck and self.discard_pile:
                 last_card = self.discard_pile.pop()
-                self.deck = self.discard_pile[:-1]  # Keep last card in discard pile
+                self.deck = self.discard_pile[:-1]
                 self.discard_pile = [last_card]
                 random.shuffle(self.deck)
             
@@ -267,75 +273,63 @@ class GameManager:
                 # AI plays the card
                 ai_hand.remove(valid_card)
                 
-                # Show what card AI played with longer delay
+                # Show what card AI played
                 play_popup = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
                 play_popup.place(relx=0.5, rely=0.5, anchor="center")
                 ctk.CTkLabel(
                     play_popup,
-                    text=f"AI {self.current_player} plays {valid_card.color} {valid_card.value}",
+                    text=f"AI {current_ai + 1} plays {valid_card.color} {valid_card.value}",
                     font=("Arial", 20)
                 ).pack(pady=20, padx=40)
-                self.game_frame.after(1500, play_popup.destroy)  # Show for 1.5 seconds
+                self.game_frame.after(1500, play_popup.destroy)
                 
-                # Handle wild cards
+                # Handle special cards
                 if valid_card.color == "Black":
-                    # Choose most common color in AI's hand
                     colors = {"Red": 0, "Blue": 0, "Green": 0, "Yellow": 0}
                     for card in ai_hand:
                         if card.color in colors:
                             colors[card.color] += 1
                     chosen_color = max(colors.items(), key=lambda x: x[1])[0]
                     
-                    # Show color choice popup
+                    # Show color choice
                     popup = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
                     popup.place(relx=0.5, rely=0.5, anchor="center")
                     ctk.CTkLabel(
                         popup,
-                        text=f"AI {self.current_player} chose {chosen_color}",
+                        text=f"AI {current_ai + 1} chose {chosen_color}",
                         font=("Arial", 20)
                     ).pack(pady=20, padx=40)
                     self.game_frame.after(1500, popup.destroy)
                     
                     valid_card.color = chosen_color
-                    
-                    if valid_card.value == "+4":
-                        next_player = (self.current_player + self.direction) % 3
-                        if next_player == 0:
-                            for _ in range(4):
-                                if self.deck:
-                                    self.player_hand.append(self.deck.pop())
-                        else:
-                            for _ in range(4):
-                                if self.deck:
-                                    self.ai_hands[next_player-1].append(self.deck.pop())
                 
                 self.discard_pile.append(valid_card)
                 
-                if valid_card.value in ["Skip", "Reverse", "+2"]:
+                # Check win condition after playing card
+                if len(ai_hand) == 0:
+                    self.ai_won(current_ai + 1)
+                    return
+                
+                # Handle special card effects
+                if valid_card.value in ["Skip", "Reverse", "+2", "+4"]:
                     self.handle_special_card(valid_card)
                 else:
                     self.current_player = (self.current_player + self.direction) % 3
-                    
-                if len(ai_hand) == 0:
-                    # Fix: Use the correct AI number (1 or 2)
-                    self.ai_won(self.current_player)
-                    return
             else:
                 # AI must draw a card
                 if self.deck:
                     new_card = self.deck.pop()
                     ai_hand.append(new_card)
-                    # Show draw card message
+                    # Show draw message
                     draw_popup = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
                     draw_popup.place(relx=0.5, rely=0.5, anchor="center")
                     ctk.CTkLabel(
                         draw_popup,
-                        text=f"AI {self.current_player} draws a card",
+                        text=f"AI {current_ai + 1} draws a card",
                         font=("Arial", 20)
                     ).pack(pady=20, padx=40)
                     self.game_frame.after(1000, draw_popup.destroy)
                 else:
-                    # Game ends in draw if no cards can be played
                     self.game_draw()
                     return
                 self.current_player = (self.current_player + self.direction) % 3
@@ -351,11 +345,9 @@ class GameManager:
         win_frame = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
         win_frame.place(relx=0.5, rely=0.5, anchor="center")
         
-        # Fix: Use correct AI number (1 or 2) instead of 0-based index
-        actual_ai_number = ai_number  # ai_number is already 1 or 2
         win_label = ctk.CTkLabel(
             win_frame, 
-            text=f"AI {actual_ai_number} Won!", 
+            text=f"AI {ai_number} Won!", 
             font=("Impact", 40)
         )
         win_label.pack(pady=20, padx=40)
