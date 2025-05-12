@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from PIL import Image
 import webbrowser  
+from game_manager import GameManager
 
 homescreen = ctk.CTk()
 homescreen.geometry("1000x600")
@@ -20,50 +21,51 @@ def close_program():
     
 def start_game(): #Da fixare le tre CPU nell'UI
     game_frame = ctk.CTkFrame(homescreen, fg_color="#92663E")
-    game_frame.grid(row=0, column=0, sticky="nsew")
+    game_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
     
-    game_frame.grid_rowconfigure(0, weight=1)  
-    game_frame.grid_rowconfigure(1, weight=0)  
-    game_frame.grid_rowconfigure(2, weight=0)  
-    game_frame.grid_rowconfigure(3, weight=0)  
-    
-    game_frame.grid_columnconfigure(0, weight=1)
-    game_frame.grid_columnconfigure(1, weight=1)
-    game_frame.grid_columnconfigure(2, weight=1)
-    
-    card_holder = ctk.CTkScrollableFrame(game_frame, width=600, height=100, orientation="horizontal")
-    card_holder.grid(row=4, column=1, padx=5, pady=5, sticky="nsew")
+    # Player's card holder at bottom
+    card_holder = ctk.CTkScrollableFrame(game_frame, width=700, height=120, orientation="horizontal", fg_color="#6B4B2D")
+    card_holder.place(relx=0.5, rely=0.85, anchor="center")
 
-    uno_yell = ctk.CTkButton(game_frame, height=100, font=("Impact", 65), text="UNO!", fg_color="#CC2E2E", hover_color="ff0000", state="disabled")
-    uno_yell.grid(row=4, column=2, padx=5, pady=1, sticky="we")
+    # UNO button on bottom right
+    uno_yell = ctk.CTkButton(game_frame, height=100, width=150, font=("Impact", 65), text="UNO!", 
+                            fg_color="#CC2E2E", hover_color="#ff0000", state="disabled")
+    uno_yell.place(relx=0.9, rely=0.85, anchor="center")
 
+    # Deck and last card in center
     deck_img = ctk.CTkImage(light_image=Image.open("./media/cards/pyUNO Retro.png"),
-                            dark_image=Image.open("./media/cards/pyUNO Retro.png"),
-                            size=(150,225))
+                           dark_image=Image.open("./media/cards/pyUNO Retro.png"),
+                           size=(150, 225))
 
     deck_label = ctk.CTkLabel(game_frame, image=deck_img, text="")
-    deck_label.grid(row=1, column=1, sticky="w")
+    deck_label.place(relx=0.4, rely=0.4, anchor="center")
     
     last_card = ctk.CTkLabel(game_frame, image=deck_img, text="")
-    last_card.grid(row=1,column=1, sticky="e")
+    last_card.place(relx=0.6, rely=0.4, anchor="center")
 
+    # Turn indicator
+    turn_label = ctk.CTkLabel(game_frame, text="Your Turn", font=("Impact", 30), text_color="white")
+    turn_label.place(relx=0.5, rely=0.15, anchor="center")
 
-    
-    ai1_name = ctk.CTkLabel(game_frame, text="ai1 x 5 Cards", font=("Arial", 18), text_color="white")
-    ai1_name.grid(row=2, column=0, pady=5, sticky="w")
+    # AI info with card counts and visual indicators
+    ai1_frame = ctk.CTkFrame(game_frame, fg_color="#553D24")
+    ai1_frame.place(relx=0.1, rely=0.4, anchor="center")
+    ai1_name = ctk.CTkLabel(ai1_frame, text="AI 1\n7 Cards", font=("Arial", 24), text_color="white")
+    ai1_name.pack(pady=10, padx=20)
 
-    ai1_button = ctk.CTkButton(game_frame, text="Challenge UNO", font=("Arial", 10), width=100, height=20, corner_radius=10, state="disabled")
-    ai1_button.grid(row=3, column=0, pady=10, sticky="w")
+    ai2_frame = ctk.CTkFrame(game_frame, fg_color="#553D24")
+    ai2_frame.place(relx=0.9, rely=0.4, anchor="center")
+    ai2_name = ctk.CTkLabel(ai2_frame, text="AI 2\n7 Cards", font=("Arial", 24), text_color="white")
+    ai2_name.pack(pady=10, padx=20)
 
+    # Color selection frame (hidden by default)
+    color_frame = ctk.CTkFrame(game_frame, fg_color="black")
+    color_frame.place(relx=0.5, rely=0.5, anchor="center")
+    color_frame.place_forget()  # Hide initially
 
-    ai2_name = ctk.CTkLabel(game_frame, text="ai2 x 9 Cards", font=("Arial", 18), text_color="White")
-    ai2_name.grid(row=2, column=2, pady=10, sticky="e")
-
-    ai2_button = ctk.CTkButton(game_frame, text="Challenge UNO", font=("Arial", 10), width=100, height=20, corner_radius=10, state="disabled")
-    ai2_button.grid(row=3, column=2, pady=10, sticky="e")
-
-   
-    show_frame(game_frame)
+    # Initialize game manager and return frame
+    game_manager = GameManager(game_frame)
+    return game_frame
 
 def open_github():
     webbrowser.open("https://github.com/cuom0")
@@ -137,8 +139,15 @@ goback = ctk.CTkButton(mode_selector, text="Back", font=("Arial", 25), width=200
 goback.grid(row=0, column=2, padx=2.5, pady=10, sticky="en")
 
 
-classic_button = ctk.CTkButton(mode_selector, text="Classic Mode", font=("Arial", 25), image=classic_image, compound="top", width=400, height=300, corner_radius=20, command=start_game)
-classic_button.grid(row=1, column=0, padx=2.5, pady=10, sticky="e")
+def start_classic_game():
+    game_frame = start_game()
+    show_frame(game_frame)
+    homescreen.update()
+
+classic_button = ctk.CTkButton(mode_selector, text="Classic Mode", font=("Arial", 25), 
+                              image=classic_image, compound="top", width=400, height=300, 
+                              corner_radius=20, command=start_classic_game)
+classic_button.grid(row=1, column=0, padx=2.5, pady=0, sticky="e")  # Add this line
 
 def show_coming_soon():
     coming_soon_label = ctk.CTkLabel(mode_selector, text="Coming soon!", font=("Arial", 20), text_color="white")
