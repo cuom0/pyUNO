@@ -5,8 +5,6 @@ from card import Card
 
 class GameManager:
     def __init__(self, game_frame, ui_elements):
-        self.game_frame = game_frame
-        self.ui_elements = ui_elements
         self.player_hand = []
         self.ai_hands = [[], []]  # AI1 and AI2 hands
         self.deck = self._create_deck()
@@ -16,6 +14,9 @@ class GameManager:
         self.uno_called = False
         self.waiting_for_color = False
         self.ai_delay = 2000  # Increased to 2 seconds for better visibility
+        self.scores = {"Player": 0, "AI 1": 0, "AI 2": 0}
+        self.game_frame = game_frame
+        self.ui_elements = ui_elements
 
     def _create_deck(self):
         deck = []
@@ -340,26 +341,107 @@ class GameManager:
                 self.game_frame.after(self.ai_delay, self.handle_ai_turn)
                 return
 
-    def ai_won(self, ai_number):
-        """Handle AI win condition"""
+    def calculate_score(self, winner):
+        """Calculate score based on remaining cards"""
+        points = 0
+        # Count points from player's hand
+        for card in self.player_hand:
+            if card.value in ["+4", "Wild"]:
+                points += 50
+            elif card.value in ["+2", "Skip", "Reverse"]:
+                points += 20
+            else:
+                points += int(card.value) if card.value.isdigit() else 0
+
+        # Count points from AI hands
+        for i, hand in enumerate(self.ai_hands):
+            for card in hand:
+                if card.value in ["+4", "Wild"]:
+                    points += 50
+                elif card.value in ["+2", "Skip", "Reverse"]:
+                    points += 20
+                else:
+                    points += int(card.value) if card.value.isdigit() else 0
+
+        # Add points to winner's score
+        self.scores[winner] += points
+
+    def game_won(self):
+        """Handle player win condition"""
+        self.calculate_score("Player")
         win_frame = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
         win_frame.place(relx=0.5, rely=0.5, anchor="center")
         
-        win_label = ctk.CTkLabel(
-            win_frame, 
-            text=f"AI {ai_number} Won!", 
+        ctk.CTkLabel(
+            win_frame,
+            text=f"You Won!\nScore: {self.scores['Player']}",
             font=("Impact", 40)
-        )
-        win_label.pack(pady=20, padx=40)
-
-    def game_draw(self):
-        """Handle game draw condition"""
-        draw_frame = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
-        draw_frame.place(relx=0.5, rely=0.5, anchor="center")
+        ).pack(pady=10)
         
-        draw_label = ctk.CTkLabel(
-            draw_frame, 
-            text="Game Draw!\nNo more cards available", 
+        self.add_rematch_button(win_frame)
+
+    def ai_won(self, ai_number):
+        """Handle AI win condition"""
+        winner = f"AI {ai_number}"
+        self.calculate_score(winner)
+        win_frame = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
+        win_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
+        ctk.CTkLabel(
+            win_frame,
+            text=f"{winner} Won!\nScore: {self.scores[winner]}",
             font=("Impact", 40)
-        )
-        draw_label.pack(pady=20, padx=40)
+        ).pack(pady=10)
+        
+        self.add_rematch_button(win_frame)
+
+    def add_rematch_button(self, frame):
+        """Add rematch and quit buttons to win/lose screen"""
+        buttons_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        buttons_frame.pack(pady=10)
+        
+        ctk.CTkButton(
+            buttons_frame,
+            text="Rematch",
+            font=("Arial", 20),
+            command=self.rematch
+        ).pack(side="left", padx=10)
+        
+        ctk.CTkButton(
+            buttons_frame,
+            text="Quit to Menu",
+            font=("Arial", 20),
+            command=lambda: self.quit_to_menu()
+        ).pack(side="left", padx=10)
+        
+        # Show all scores
+        scores_text = "\n".join([f"{player}: {score}" 
+                                for player, score in self.scores.items()])
+        ctk.CTkLabel(
+            frame,
+            text=f"\nTotal Scores:\n{scores_text}",
+            font=("Arial", 20)
+        ).pack(pady=10)
+
+    def rematch(self):
+        """Reset the game for a rematch"""
+        # Clear hands
+        self.player_hand.clear()
+        self.ai_hands[0].clear()
+        self.ai_hands[1].clear()
+        self.discard_pile.clear()
+        
+        # Reset deck
+        self.deck = self._create_deck()
+        
+        # Clear game frame
+        for widget in self.game_frame.winfo_children():
+            widget.destroy()
+            
+        # Reinitialize game
+        self.initialize_game()
+
+    def quit_to_menu(self):
+        """Return to main menu"""
+        from main import show_frame, home_frame
+        show_frame(home_frame)
