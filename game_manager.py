@@ -1,319 +1,322 @@
 import customtkinter as ctk
-from card import Game, Card
+from PIL import Image
+from card import Card
 import random
+
+class Game:
+    def __init__(self):
+        self.deck = self._create_deck()
+        self.discard_pile = []
+        self.current_player = 0
+        self.players = [[], [], []]  # player, AI1, AI2 hands
+        self.direction = 1  # 1 for clockwise, -1 for counter-clockwise
+
+    def _create_deck(self):
+        deck = []
+        colors = ["Red", "Blue", "Green", "Yellow"]
+        numbers = list(range(0, 10)) + list(range(1, 10))  # 0-9 once, 1-9 twice
+        
+        # Add number cards
+        for color in colors:
+            for number in numbers:
+                deck.append(Card(color, str(number)))
+        
+        # Add special cards (Skip, Reverse, +2)
+        special_cards = ["Skip", "Reverse", "+2"]
+        for color in colors:
+            for _ in range(2):  # Two of each special card per color
+                for special in special_cards:
+                    deck.append(Card(color, special))
+        
+        # Add wild cards
+        for _ in range(4):  # Four of each wild card
+            deck.append(Card("Black", "Wild"))
+            deck.append(Card("Black", "+4"))
+        
+        random.shuffle(deck)
+        return deck
+
+    def draw_card(self):
+        """Draw a card from the deck"""
+        if not self.deck:
+            if self.discard_pile:
+                last_card = self.discard_pile.pop()
+                self.deck = self.discard_pile
+                self.discard_pile = [last_card]
+                random.shuffle(self.deck)
+            else:
+                return None
+        return self.deck.pop()
+
+    def play_card(self, card):
+        """Play a card to the discard pile"""
+        self.discard_pile.append(card)
+
+    def is_valid_play(self, card):
+        """Check if a card can be played"""
+        if not self.discard_pile:
+            return True
+        
+        top_card = self.discard_pile[-1]
+        
+        if card.color == "Black":
+            return True
+            
+        return (card.color == top_card.color or 
+                card.value == top_card.value)
+
+    def next_turn(self):
+        """Move to the next player's turn"""
+        self.current_player = (self.current_player + self.direction) % 3
+        return self.current_player
 
 class GameManager:
     def __init__(self, game_frame, ui_elements):
         self.game_frame = game_frame
         self.ui_elements = ui_elements
-        self.game = Game(4)
-        self.card_buttons = []
-        self.color_frame = None
+        self.game = Game()
+        self.player_hand = []
         self.uno_called = False
+        self.ai_thinking = False
+        # Add after delay between AI moves (in milliseconds)
+        self.ai_delay = 1000
+        self.waiting_for_color = False
+        self.temp_wild_card = None
+
+    def initialize_game(self):
+        """Initialize the game state and deal initial cards"""
+        # Deal initial cards
+        for _ in range(7):
+            self.player_hand.append(self.game.draw_card())
+            self.game.players[1].append(self.game.draw_card())  # AI 1
+            self.game.players[2].append(self.game.draw_card())  # AI 2
         
-        # Setup initial game state
-        self.setup_color_selector()
-        self.setup_deck_click()
+        # Update the display
         self.update_game_state()
-
-    def setup_color_selector(self):
-        """Create and configure the color selection frame"""
-        self.color_frame = ctk.CTkFrame(self.game_frame, fg_color="#333333")
-
-        # Add title label
-        ctk.CTkLabel(
-            self.color_frame,
-            text="Choose a color:",
-            font=("Arial", 24),
-            text_color="white"
-        ).pack(pady=10)
-
-        # Create color buttons
-        colors = [
-            ("Red", "#FF0000"),
-            ("Blue", "#0000FF"),
-            ("Green", "#00FF00"),
-            ("Yellow", "#FFD700")
-        ]
-
-        for color_name, color_code in colors:
-            btn = ctk.CTkButton(
-                self.color_frame,
-                text=color_name,
-                font=("Arial", 20),
-                fg_color=color_code,
-                hover_color=color_code,
-                command=lambda c=color_name.lower(): self.handle_color_selection(c)
-            )
-            btn.pack(pady=5, padx=20)
-
-        # Hide initially
-        self.color_frame.place_forget()
-
-    def handle_color_selection(self, color):
-        """Handle color selection for wild cards"""
-        if self.color_frame:
-            self.color_frame.place_forget()
-            if self.game.discard_pile:
-                self.game.discard_pile[-1].color = color
-                self.game.next_turn()
-                self.ai_turns()
-                self.update_game_state()
-
-    def show_color_selector(self):
-        """Display the color selector in the center of the screen"""
-        if self.color_frame:
-            self.color_frame.place(relx=0.5, rely=0.5, anchor="center")
-
-    def setup_deck_click(self):
-        """Setup deck click handler"""
-        if 'deck_label' in self.ui_elements:
-            self.ui_elements['deck_label'].configure(cursor="hand2")
-            self.ui_elements['deck_label'].bind("<Button-1>", self.on_deck_click)
-
-    def on_deck_click(self, event):
-        """Handle deck click event"""
-        try:
-            self.draw_card()
-        except Exception as e:
-            print(f"Error drawing card: {e}")
+        self.update_ai_labels()
 
     def update_game_state(self):
-        """Update all UI elements safely"""
+        """Update the game state display"""
         try:
-            # Update last card
+            self.update_player_hand()
+            self.update_ai_labels()
+            
+            # Update last played card if exists
             if self.game.discard_pile:
-                top_card = self.game.discard_pile[-1]
-                self.ui_elements['last_card'].configure(image=top_card.get_image())
-
-            # Update player hand
-            if self.card_holder:
-                self.update_player_hand()
-
-            # Update AI info
-            self.update_ai_info()
-
-            # Check for UNO condition when it's player's turn
-            if (self.game.current_player == 0 and
-                len(self.game.players[0]) == 2 and
-                not self.uno_called):
-                self.ui_elements['uno_button'].configure(state="normal")
-            else:
-                self.ui_elements['uno_button'].configure(state="disabled")
-
+                last_card = self.game.discard_pile[-1]
+                self.ui_elements['last_card'].configure(
+                    image=last_card.get_image((150, 225))
+                )
+            
+            # Update turn indicator
+            turn_text = "Your Turn" if self.game.current_player == 0 else f"AI {self.game.current_player}'s Turn"
+            self.ui_elements['turn_label'].configure(text=turn_text)
+            
+            # Update UNO button state
+            self.ui_elements['uno_button'].configure(
+                state="normal" if len(self.player_hand) == 2 else "disabled"
+            )
+            
+            # Force update
+            self.game_frame.update()
         except Exception as e:
-            print(f"Error updating game state: {e}")
+            print(f"Error updating game state: {str(e)}")
 
     def update_player_hand(self):
-        """Update player's hand display"""
-        if 'card_holder' in self.ui_elements:
-            card_holder = self.ui_elements['card_holder']
-            # Clear existing cards
-            for widget in card_holder.winfo_children():
-                widget.destroy()
-
-<<<<<<< HEAD
-            # Add cards to hand
-=======
->>>>>>> 5d1bc3785503c64059e07657ad0d42df82e54728
-            for card in self.game.players[0]:
-                card_btn = ctk.CTkButton(
-                    card_holder,
-                    image=card.get_image((100, 150)),
-                    text="",
-                    width=100,
-                    command=lambda c=card: self.play_card(c)
-                )
-                card_btn.pack(side="left", padx=5)
-
-    def update_ai_info(self):
-        """Update AI labels with current card counts"""
-        if 'ai1_label' in self.ui_elements:
-            self.ui_elements['ai1_label'].configure(
-                text=f"AI 1\n{len(self.game.players[1])} Cards"
+        """Update the display of player's hand"""
+        card_holder = self.ui_elements['card_holder']
+        
+        # Clear existing cards
+        for widget in card_holder.winfo_children():
+            widget.destroy()
+            
+        # Add current cards
+        for card in self.player_hand:
+            card_btn = ctk.CTkButton(
+                card_holder,
+                image=card.get_image((100, 150)),
+                text="",
+                width=100,
+                command=lambda c=card: self.play_card(c)
             )
-        if 'ai2_label' in self.ui_elements:
-            self.ui_elements['ai2_label'].configure(
-                text=f"AI 2\n{len(self.game.players[2])} Cards"
-            )
+            card_btn.pack(side="left", padx=5)
+
+    def update_ai_labels(self):
+        """Update AI card count labels"""
+        self.ui_elements['ai1_label'].configure(
+            text=f"AI 1\n{len(self.game.players[1])} Cards"
+        )
+        self.ui_elements['ai2_label'].configure(
+            text=f"AI 2\n{len(self.game.players[2])} Cards"
+        )
 
     def draw_card(self):
-        """Handle drawing a card from the deck"""
+        """Handle drawing a card"""
         if self.game.current_player == 0:  # Only allow drawing on player's turn
-            drawn_card = self.game.deck.draw()
-            if drawn_card:
-                # Add card to player's hand
-                self.game.players[0].append(drawn_card)
-                self.update_player_hand()
+            new_card = self.game.draw_card()
+            if new_card:
+                self.player_hand.append(new_card)
+                self.update_game_state()
+                self.game.next_turn()
+                self.update_game_state()
 
-                # Check if drawn card is playable
-                top_card = self.game.discard_pile[-1]
-                if not (drawn_card.color == top_card.color or
-                       drawn_card.value == top_card.value or
-                       drawn_card.color == 'black'):
-                    # Card not playable, end turn
-                    self.game.next_turn()
-                    self.game_frame.after(500, self.ai_turns)
+    def handle_wild_card(self, card):
+        """Handle wild card color selection for player"""
+        self.waiting_for_color = True
+        self.temp_wild_card = card
+        
+        # Create color selection popup
+        color_popup = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
+        color_popup.place(relx=0.5, rely=0.5, anchor="center")
+        
+        ctk.CTkLabel(
+            color_popup, 
+            text="Choose a color:", 
+            font=("Arial", 20)
+        ).pack(pady=10)
+        
+        colors = ["Red", "Blue", "Green", "Yellow"]
+        color_hex = {"Red": "#FF0000", "Blue": "#0000FF", 
+                    "Green": "#00FF00", "Yellow": "#FFFF00"}
+        
+        for color in colors:
+            ctk.CTkButton(
+                color_popup,
+                text=color,
+                fg_color=color_hex[color],
+                text_color="black",
+                command=lambda c=color: self.complete_wild_card_play(c, color_popup)
+            ).pack(pady=5, padx=20)
+
+    def complete_wild_card_play(self, chosen_color, popup):
+        """Complete wild card play after color selection"""
+        popup.destroy()
+        self.waiting_for_color = False
+        self.temp_wild_card.color = chosen_color
+        self.player_hand.remove(self.temp_wild_card)
+        self.game.play_card(self.temp_wild_card)
+        self.update_game_state()
+        self.game.next_turn()
+        self.game_frame.after(500, self.handle_ai_turn)
+
+    def ai_choose_wild_color(self, ai_number):
+        """AI chooses color based on its hand"""
+        ai_hand = self.game.players[ai_number]
+        color_counts = {"Red": 0, "Blue": 0, "Green": 0, "Yellow": 0}
+        
+        # Count colors in AI's hand
+        for card in ai_hand:
+            if card.color in color_counts:
+                color_counts[card.color] += 1
+        
+        # Choose most frequent color
+        chosen_color = max(color_counts.items(), key=lambda x: x[1])[0]
+        
+        # Show popup with AI's choice
+        color_popup = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
+        color_popup.place(relx=0.5, rely=0.5, anchor="center")
+        
+        ctk.CTkLabel(
+            color_popup,
+            text=f"AI {ai_number} chose {chosen_color}",
+            font=("Arial", 20)
+        ).pack(pady=20, padx=40)
+        
+        # Auto-close popup after 1.5 seconds
+        self.game_frame.after(1500, color_popup.destroy)
+        
+        return chosen_color
 
     def play_card(self, card):
-        if self.game.current_player == 0:
-            try:
-                player_hand = self.game.players[0]
-                card_idx = player_hand.index(card)
+        """Handle playing a card"""
+        if self.game.current_player == 0 and not self.waiting_for_color:  # Player's turn
+            if self.game.is_valid_play(card):
+                if len(self.player_hand) == 2 and not self.uno_called:
+                    return
+                
+                if card.value in ["Wild", "+4"]:
+                    self.handle_wild_card(card)
+                    return
+                
+                self.player_hand.remove(card)
+                self.game.play_card(card)
+                self.update_game_state()
+                
+                self.uno_called = False
+                
+                if len(self.player_hand) == 0:
+                    self.game_won()
+                    return
+                
+                self.game.next_turn()
+                self.update_game_state()
+                self.game_frame.after(500, self.handle_ai_turn)
 
-                if self.game.is_valid_play(card):
-                    # Play the card
-                    self.game.discard_pile.append(player_hand.pop(card_idx))
-
-                    # Check if UNO wasn't called when playing second-to-last card
-                    if len(player_hand) == 1 and not self.uno_called:
-                        self.show_uno_warning()
-                        # Add 2 cards as punishment
-                        for _ in range(2):
-                            drawn = self.game.deck.draw()
-                            if drawn:
-                                player_hand.append(drawn)
-
-                    # Handle special cards and continue game
-                    if card.color == 'black':
-                        self.show_color_selector()
-                    else:
-                        self.game.next_turn()
-                        self.update_game_state()
-                        self.game_frame.after(1000, self.ai_turns)
-
-            except Exception as e:
-                print(f"Error playing card: {e}")
-
-    def show_uno_warning(self):
-        warning_frame = ctk.CTkFrame(self.game_frame, fg_color="#333333")
-        warning_frame.place(relx=0.5, rely=0.5, anchor="center")
-
-        warning_label = ctk.CTkLabel(
-            warning_frame,
-            text="Forgot to yell UNO!\n+2 cards",
-            font=("Arial", 24),
-            text_color="white"
-        )
-        warning_label.pack(pady=20, padx=40)
-
-        # Remove warning after 2 seconds
-        self.game_frame.after(2000, warning_frame.destroy)
-
-    def call_uno(self):
-        self.uno_called = True
-        self.ui_elements['uno_button'].configure(state="disabled")
-
-    def ai_turns(self):
+    def handle_ai_turn(self):
         """Handle AI turns"""
-        if self.game.current_player == 0:  # Skip if it's player's turn
-            return
-
-        try:
-            self.ui_elements['turn_label'].configure(text="AI's Turn")
-
-            # Process single AI turn
-            ai_idx = self.game.current_player
-            ai_hand = self.game.players[ai_idx]
-
-            # AI logic
-            played = False
-            for card_idx, card in enumerate(ai_hand):
+        while self.game.current_player != 0:
+            current_ai = self.game.current_player
+            ai_hand = self.game.players[current_ai]
+            
+            # Find valid card to play
+            valid_card = None
+            for card in ai_hand:
                 if self.game.is_valid_play(card):
-                    # Remove card from AI hand and add to discard pile
-                    played_card = ai_hand.pop(card_idx)
-                    self.game.discard_pile.append(played_card)
-                    played = True
-
-                    # Check for win immediately after playing card
-                    if len(ai_hand) == 0:
-                        self.check_win()
-                        return  # Stop game if AI won
-
-                    # Handle AI wild card
-                    if card.color == 'black':
-                        colors = ["red", "blue", "green", "yellow"]
-                        chosen_color = random.choice(colors)
-                        self.game.discard_pile[-1].color = chosen_color
-                        self.show_ai_color_choice(chosen_color)
+                    valid_card = card
                     break
-
-            if not played:
-                # AI draws a card if can't play
-                drawn_card = self.game.deck.draw()
-                if drawn_card:
-                    ai_hand.append(drawn_card)
-
-            # Update game state
-            self.game.next_turn()
-            self.update_game_state()
-
-            # Schedule next AI turn or return to player
-            if self.game.current_player != 0 and not self.check_win():
-                self.game_frame.after(1000, self.ai_turns)
+            
+            if valid_card:
+                ai_hand.remove(valid_card)
+                
+                # Handle wild card played by AI
+                if valid_card.value in ["Wild", "+4"]:
+                    chosen_color = self.ai_choose_wild_color(current_ai)
+                    valid_card.color = chosen_color
+                
+                self.game.play_card(valid_card)
+                self.update_ai_labels()
+                
+                if len(ai_hand) == 0:
+                    self.ai_won(current_ai)
+                    return
             else:
-                self.ui_elements['turn_label'].configure(text="Your Turn")
+                new_card = self.game.draw_card()
+                if new_card:
+                    ai_hand.append(new_card)
+            
+            self.update_game_state()
+            self.game.next_turn()
+            
+            if self.game.current_player != 0:
+                self.game_frame.after(self.ai_delay, self.handle_ai_turn)
+                return
 
-        except Exception as e:
-            print(f"Error during AI turns: {e}")
-            self.ui_elements['turn_label'].configure(text="Your Turn")
-            self.game.current_player = 0  # Reset to player's turn if error occurs
-
-    def show_ai_color_choice(self, color):
-        """Show temporary notification of AI color choice"""
-        notification = ctk.CTkLabel(
-            self.game_frame,
-            text=f"AI chose {color}!",
-            font=("Arial", 24),
-            fg_color="black",
-            text_color="white"
-        )
-        notification.place(relx=0.5, rely=0.3, anchor="center")
-        self.game_frame.after(2000, notification.destroy)  # Remove after 2 seconds
-
-    def check_win(self):
-        """Check for win condition and show win screen if game is over"""
-        for i, hand in enumerate(self.game.players):
-            if len(hand) == 0:
-                winner = "You" if i == 0 else f"AI {i}"
-                self.show_win_screen(winner)
-                return True
-        return False
-
-    def show_win_screen(self, winner):
-        win_frame = ctk.CTkFrame(self.game_frame, fg_color="#092c4d")
+    def ai_won(self, ai_number):
+        """Handle AI win condition"""
+        win_frame = ctk.CTkFrame(self.game_frame)
         win_frame.place(relx=0.5, rely=0.5, anchor="center")
         
-        # Win message
-        ctk.CTkLabel(
-            win_frame,
-            text=f"{winner} won the game!",
-            font=("Impact", 40),
-            text_color="white"
-        ).pack(pady=20)
-        
-        # Play again button
-        ctk.CTkButton(
-            win_frame,
-            text="Play Again",
-            font=("Arial", 24),
-            command=lambda: [win_frame.destroy(), self.restart_game()]
-        ).pack(pady=10)
-        
-        # Quit button
-        ctk.CTkButton(
-            win_frame,
-            text="Quit",
-            font=("Arial", 24),
-            command=lambda: [win_frame.destroy(), self.quit_game()]
-        ).pack(pady=10)
+        win_label = ctk.CTkLabel(
+            win_frame, 
+            text=f"AI {ai_number} Won!", 
+            font=("Impact", 40)
+        )
+        win_label.pack(pady=20, padx=40)
 
-    def restart_game(self):
-        self.game = Game(4)
-        self.uno_called = False
-        self.ui_elements['uno_button'].configure(state="disabled")
-        self.update_game_state()
+    def call_uno(self):
+        """Handle UNO button press"""
+        if len(self.player_hand) == 2:
+            self.uno_called = True
+            self.ui_elements['uno_button'].configure(state="disabled")
 
-    def quit_game(self):
-        from main import show_frame, home_frame
-        show_frame(home_frame)
+    def game_won(self):
+        """Handle game win condition"""
+        win_frame = ctk.CTkFrame(self.game_frame)
+        win_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
+        win_label = ctk.CTkLabel(
+            win_frame, 
+            text="You Won!", 
+            font=("Impact", 40)
+        )
+        win_label.pack(pady=20, padx=40)

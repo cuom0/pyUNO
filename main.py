@@ -76,6 +76,13 @@ def start_game(): #Da fixare le tre CPU nell'UI
 
     # Initialize game manager with UI elements dictionary
     game_manager = GameManager(game_frame, ui_elements)
+    
+    # Configure deck label to draw cards
+    ui_elements['deck_label'].bind('<Button-1>', lambda e: game_manager.draw_card())
+    
+    # Initialize the game state
+    game_manager.initialize_game()
+    
     return game_frame
 
 def open_github():
