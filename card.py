@@ -115,4 +115,5 @@ class Game:
         self.next_turn()
         
     def next_turn(self):
+        """Advance to next player's turn"""
         self.current_player = (self.current_player + self.direction) % len(self.players)

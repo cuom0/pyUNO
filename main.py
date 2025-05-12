@@ -23,48 +23,57 @@ def start_game(): #Da fixare le tre CPU nell'UI
     game_frame = ctk.CTkFrame(homescreen, fg_color="#92663E")
     game_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
     
-    # Player's card holder at bottom
-    card_holder = ctk.CTkScrollableFrame(game_frame, width=700, height=120, orientation="horizontal", fg_color="#6B4B2D")
-    card_holder.place(relx=0.5, rely=0.85, anchor="center")
+    # Create dictionary to store UI elements
+    ui_elements = {}
+    
+    # Create all UI elements first
+    ui_elements['card_holder'] = ctk.CTkScrollableFrame(
+        game_frame, width=700, height=120, 
+        orientation="horizontal", fg_color="#6B4B2D"
+    )
+    ui_elements['card_holder'].place(relx=0.5, rely=0.85, anchor="center")
 
-    # UNO button on bottom right
-    uno_yell = ctk.CTkButton(game_frame, height=100, width=150, font=("Impact", 65), text="UNO!", 
-                            fg_color="#CC2E2E", hover_color="#ff0000", state="disabled")
-    uno_yell.place(relx=0.9, rely=0.85, anchor="center")
+    # UNO button
+    ui_elements['uno_button'] = ctk.CTkButton(
+        game_frame, height=100, width=150, font=("Impact", 65), text="UNO!", 
+        fg_color="#CC2E2E", hover_color="#ff0000", state="disabled"
+    )
+    ui_elements['uno_button'].place(relx=0.9, rely=0.85, anchor="center")
 
-    # Deck and last card in center
+    # Deck and last card
     deck_img = ctk.CTkImage(light_image=Image.open("./media/cards/pyUNO Retro.png"),
                            dark_image=Image.open("./media/cards/pyUNO Retro.png"),
                            size=(150, 225))
 
-    deck_label = ctk.CTkLabel(game_frame, image=deck_img, text="")
-    deck_label.place(relx=0.4, rely=0.4, anchor="center")
+    ui_elements['deck_label'] = ctk.CTkLabel(game_frame, image=deck_img, text="")
+    ui_elements['deck_label'].place(relx=0.4, rely=0.4, anchor="center")
     
-    last_card = ctk.CTkLabel(game_frame, image=deck_img, text="")
-    last_card.place(relx=0.6, rely=0.4, anchor="center")
+    ui_elements['last_card'] = ctk.CTkLabel(game_frame, image=deck_img, text="")
+    ui_elements['last_card'].place(relx=0.6, rely=0.4, anchor="center")
 
     # Turn indicator
-    turn_label = ctk.CTkLabel(game_frame, text="Your Turn", font=("Impact", 30), text_color="white")
-    turn_label.place(relx=0.5, rely=0.15, anchor="center")
+    ui_elements['turn_label'] = ctk.CTkLabel(
+        game_frame, text="Your Turn", font=("Impact", 30), text_color="white"
+    )
+    ui_elements['turn_label'].place(relx=0.5, rely=0.15, anchor="center")
 
-    # AI info with card counts and visual indicators
+    # AI info
     ai1_frame = ctk.CTkFrame(game_frame, fg_color="#553D24")
     ai1_frame.place(relx=0.1, rely=0.4, anchor="center")
-    ai1_name = ctk.CTkLabel(ai1_frame, text="AI 1\n7 Cards", font=("Arial", 24), text_color="white")
-    ai1_name.pack(pady=10, padx=20)
+    ui_elements['ai1_label'] = ctk.CTkLabel(
+        ai1_frame, text="AI 1\n7 Cards", font=("Arial", 24), text_color="white"
+    )
+    ui_elements['ai1_label'].pack(pady=10, padx=20)
 
     ai2_frame = ctk.CTkFrame(game_frame, fg_color="#553D24")
     ai2_frame.place(relx=0.9, rely=0.4, anchor="center")
-    ai2_name = ctk.CTkLabel(ai2_frame, text="AI 2\n7 Cards", font=("Arial", 24), text_color="white")
-    ai2_name.pack(pady=10, padx=20)
+    ui_elements['ai2_label'] = ctk.CTkLabel(
+        ai2_frame, text="AI 2\n7 Cards", font=("Arial", 24), text_color="white"
+    )
+    ui_elements['ai2_label'].pack(pady=10, padx=20)
 
-    # Color selection frame (hidden by default)
-    color_frame = ctk.CTkFrame(game_frame, fg_color="black")
-    color_frame.place(relx=0.5, rely=0.5, anchor="center")
-    color_frame.place_forget()  # Hide initially
-
-    # Initialize game manager and return frame
-    game_manager = GameManager(game_frame)
+    # Initialize game manager with UI elements dictionary
+    game_manager = GameManager(game_frame, ui_elements)
     return game_frame
 
 def open_github():
