@@ -12,6 +12,7 @@ homescreen.title("pyUNO")
 
 def show_frame(frame): 
     frame.tkraise()
+    frame.update()  # Force update to show frame immediately
 
 for i in range(4): 
     homescreen.grid_columnconfigure(i, weight=1)
@@ -36,7 +37,8 @@ def start_game(): #Da fixare le tre CPU nell'UI
     # UNO button
     ui_elements['uno_button'] = ctk.CTkButton(
         game_frame, height=100, width=150, font=("Impact", 65), text="UNO!", 
-        fg_color="#CC2E2E", hover_color="#ff0000", state="disabled"
+        fg_color="#CC2E2E", hover_color="#ff0000", state="disabled",
+        command=lambda: game_manager.call_uno()  # Add this line
     )
     ui_elements['uno_button'].place(relx=0.9, rely=0.85, anchor="center")
 
