@@ -15,7 +15,7 @@ class GameManager:
         self.direction = 1
         self.uno_called = False
         self.waiting_for_color = False
-        self.ai_delay = 1000  # Milliseconds between AI moves
+        self.ai_delay = 2000  # Increased to 2 seconds for better visibility
 
     def _create_deck(self):
         deck = []
@@ -249,6 +249,13 @@ class GameManager:
             current_ai = self.current_player - 1  # Convert to 0-based index for ai_hands
             ai_hand = self.ai_hands[current_ai]
             
+            # Check if deck is empty and needs reshuffling
+            if not self.deck and self.discard_pile:
+                last_card = self.discard_pile.pop()
+                self.deck = self.discard_pile[:-1]  # Keep last card in discard pile
+                self.discard_pile = [last_card]
+                random.shuffle(self.deck)
+            
             # Find valid card to play
             valid_card = None
             for card in ai_hand:
@@ -259,6 +266,16 @@ class GameManager:
             if valid_card:
                 # AI plays the card
                 ai_hand.remove(valid_card)
+                
+                # Show what card AI played with longer delay
+                play_popup = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
+                play_popup.place(relx=0.5, rely=0.5, anchor="center")
+                ctk.CTkLabel(
+                    play_popup,
+                    text=f"AI {self.current_player} plays {valid_card.color} {valid_card.value}",
+                    font=("Arial", 20)
+                ).pack(pady=20, padx=40)
+                self.game_frame.after(1500, play_popup.destroy)  # Show for 1.5 seconds
                 
                 # Handle wild cards
                 if valid_card.color == "Black":
@@ -300,6 +317,7 @@ class GameManager:
                     self.current_player = (self.current_player + self.direction) % 3
                     
                 if len(ai_hand) == 0:
+                    # Fix: Use the correct AI number (1 or 2)
                     self.ai_won(self.current_player)
                     return
             else:
@@ -307,12 +325,25 @@ class GameManager:
                 if self.deck:
                     new_card = self.deck.pop()
                     ai_hand.append(new_card)
+                    # Show draw card message
+                    draw_popup = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
+                    draw_popup.place(relx=0.5, rely=0.5, anchor="center")
+                    ctk.CTkLabel(
+                        draw_popup,
+                        text=f"AI {self.current_player} draws a card",
+                        font=("Arial", 20)
+                    ).pack(pady=20, padx=40)
+                    self.game_frame.after(1000, draw_popup.destroy)
+                else:
+                    # Game ends in draw if no cards can be played
+                    self.game_draw()
+                    return
                 self.current_player = (self.current_player + self.direction) % 3
             
             self.update_game_state()
             
             if self.current_player != 0:
-                self.game_frame.after(1000, self.handle_ai_turn)
+                self.game_frame.after(self.ai_delay, self.handle_ai_turn)
                 return
 
     def ai_won(self, ai_number):
@@ -320,9 +351,23 @@ class GameManager:
         win_frame = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
         win_frame.place(relx=0.5, rely=0.5, anchor="center")
         
+        # Fix: Use correct AI number (1 or 2) instead of 0-based index
+        actual_ai_number = ai_number  # ai_number is already 1 or 2
         win_label = ctk.CTkLabel(
             win_frame, 
-            text=f"AI {ai_number} Won!", 
+            text=f"AI {actual_ai_number} Won!", 
             font=("Impact", 40)
         )
         win_label.pack(pady=20, padx=40)
+
+    def game_draw(self):
+        """Handle game draw condition"""
+        draw_frame = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
+        draw_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
+        draw_label = ctk.CTkLabel(
+            draw_frame, 
+            text="Game Draw!\nNo more cards available", 
+            font=("Impact", 40)
+        )
+        draw_label.pack(pady=20, padx=40)
