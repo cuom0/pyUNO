@@ -112,7 +112,10 @@ class GameManager:
             for widget in card_holder.winfo_children():
                 widget.destroy()
 
+<<<<<<< HEAD
             # Add cards to hand
+=======
+>>>>>>> 5d1bc3785503c64059e07657ad0d42df82e54728
             for card in self.game.players[0]:
                 card_btn = ctk.CTkButton(
                     card_holder,
