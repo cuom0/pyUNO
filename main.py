@@ -1,7 +1,6 @@
 import customtkinter as ctk
 from PIL import Image
 import webbrowser  
-from game_manager import GameManager
 
 homescreen = ctk.CTk()
 homescreen.geometry("1000x600")
@@ -20,7 +19,8 @@ for i in range(4):
 def close_program():
     homescreen.destroy()
     
-def start_game(): #Da fixare le tre CPU nell'UI
+def start_game():
+    from game_manager import GameManager  # Move import here
     game_frame = ctk.CTkFrame(homescreen, fg_color="#92663E")
     game_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
     
@@ -158,8 +158,11 @@ goback.grid(row=0, column=2, padx=2.5, pady=10, sticky="en")
 
 
 def start_classic_game():
+    print("Starting classic game...")  # Debug print
     game_frame = start_game()
+    print("Game frame created...")     # Debug print
     show_frame(game_frame)
+    print("Frame shown...")            # Debug print
     homescreen.update()
 
 classic_button = ctk.CTkButton(mode_selector, text="Classic Mode", font=("Arial", 25), 

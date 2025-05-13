@@ -14,7 +14,6 @@ class GameManager:
         self.uno_called = False
         self.waiting_for_color = False
         self.ai_delay = 2000  # Increased to 2 seconds for better visibility
-        self.scores = {"Player": 0, "AI 1": 0, "AI 2": 0}
         self.game_frame = game_frame
         self.ui_elements = ui_elements
 
@@ -84,31 +83,24 @@ class GameManager:
             )
             btn.pack(pady=5, padx=20)
 
-    def complete_wild_card_play(self, card, chosen_color, popup):
-        """Complete wild card play after color selection"""
+    def complete_wild_card_play(self, card, chosen_color, popup, win_pending=False):
+        """Complete playing a wild card after color is chosen"""
+        card.color = chosen_color
+        self.discard_pile.append(card)
         popup.destroy()
         self.waiting_for_color = False
         
-        # Remove card from hand and update its color
-        self.player_hand.remove(card)
-        card.color = chosen_color
-        self.discard_pile.append(card)
-        
-        # Handle +4 effect if applicable
+        if win_pending:
+            self.game_won()
+            return
+            
         if card.value == "+4":
-            next_player = (self.current_player + self.direction) % 3
-            if next_player == 0:
-                for _ in range(4):
-                    drawn = self.deck.pop()
-                    if drawn: self.player_hand.append(drawn)
-            else:
-                for _ in range(4):
-                    drawn = self.deck.pop()
-                    if drawn: self.ai_hands[next_player-1].append(drawn)
+            self.handle_special_card(card)
+        else:
+            self.current_player = (self.current_player + self.direction) % 3
         
-        self.current_player = (self.current_player + self.direction) % 3
-        self.update_game_state()
         self.game_frame.after(500, self.handle_ai_turn)
+        self.update_game_state()
 
     def is_valid_play(self, card):
         """Check if a card can be played"""
@@ -162,24 +154,44 @@ class GameManager:
         """Handle playing a card"""
         if self.current_player == 0 and not self.waiting_for_color:
             if self.is_valid_play(card):
+                # Check for UNO button violation
                 if len(self.player_hand) == 2 and not self.uno_called:
+                    # Player should have called UNO - add 2 cards as penalty
+                    for _ in range(2):
+                        if self.deck:
+                            self.player_hand.append(self.deck.pop())
+                    self.update_game_state()
                     return
-                    
-                if card.color == "Black":
-                    self.handle_wild_card(card)
-                    return
-                    
+                
                 self.player_hand.remove(card)
-                self.discard_pile.append(card)
                 
-                # Handle special cards
-                if card.value in ["Skip", "Reverse", "+2"]:
-                    self.handle_special_card(card)
+                # Add card to discard pile before checking win
+                if card.color != "Black":
+                    self.discard_pile.append(card)
+                
+                # Check win condition immediately
+                if len(self.player_hand) == 0:
+                    if card.color == "Black":
+                        # For black cards, wait for color selection before winning
+                        self.waiting_for_color = True
+                        self.show_color_picker(card, win_pending=True)
+                    else:
+                        self.game_won()
+                    return
+                
+                # Normal card play logic continues...
+                if card.color == "Black":
+                    self.waiting_for_color = True
+                    self.handle_wild_card(card)  # Changed from show_color_picker to handle_wild_card
                 else:
-                    self.current_player = (self.current_player + self.direction) % 3
-                
-                self.update_game_state()
-                self.game_frame.after(500, self.handle_ai_turn)
+                    self.discard_pile.append(card)
+                    if card.value in ["Skip", "Reverse", "+2", "+4"]:
+                        self.handle_special_card(card)
+                    else:
+                        self.current_player = (self.current_player + self.direction) % 3
+                    self.game_frame.after(500, self.handle_ai_turn)
+            
+            self.update_game_state()
 
     def update_player_hand(self):
         card_holder = self.ui_elements['card_holder']
@@ -222,7 +234,7 @@ class GameManager:
             self.ui_elements['uno_button'].configure(state="disabled")
             
     def handle_special_card(self, card):
-        """Handle special card effects (+2, Skip, Reverse)"""
+        """Handle special card effects (+2, Skip, Reverse, +4)"""
         next_player = (self.current_player + self.direction) % 3
         
         if card.value == "Skip":
@@ -241,6 +253,17 @@ class GameManager:
                     if self.deck:
                         self.ai_hands[next_player-1].append(self.deck.pop())
             self.current_player = (next_player + self.direction) % 3
+        elif card.value == "+4":  # Add this section
+            # Make next player draw 4 cards
+            if next_player == 0:
+                for _ in range(4):
+                    if self.deck:
+                        self.player_hand.append(self.deck.pop())
+            else:
+                for _ in range(4):
+                    if self.deck:
+                        self.ai_hands[next_player-1].append(self.deck.pop())
+            self.current_player = (next_player + self.direction) % 3
         else:
             self.current_player = next_player
 
@@ -252,7 +275,6 @@ class GameManager:
             
             # Check for win condition first
             if len(ai_hand) == 0:
-                # AI number is 1 or 2 based on current_ai index (0 or 1)
                 self.ai_won(current_ai + 1)
                 return
                 
@@ -368,32 +390,39 @@ class GameManager:
 
     def game_won(self):
         """Handle player win condition"""
-        self.calculate_score("Player")
         win_frame = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
         win_frame.place(relx=0.5, rely=0.5, anchor="center")
         
         ctk.CTkLabel(
             win_frame,
-            text=f"You Won!\nScore: {self.scores['Player']}",
+            text="You Won!",
             font=("Impact", 40)
-        ).pack(pady=10)
+        ).pack(pady=20)
         
-        self.add_rematch_button(win_frame)
+        ctk.CTkButton(
+            win_frame,
+            text="Exit Game",
+            font=("Arial", 20),
+            command=lambda: self.game_frame.winfo_toplevel().destroy()
+        ).pack(pady=20)
 
     def ai_won(self, ai_number):
         """Handle AI win condition"""
-        winner = f"AI {ai_number}"
-        self.calculate_score(winner)
         win_frame = ctk.CTkFrame(self.game_frame, fg_color="#553D24")
         win_frame.place(relx=0.5, rely=0.5, anchor="center")
         
         ctk.CTkLabel(
             win_frame,
-            text=f"{winner} Won!\nScore: {self.scores[winner]}",
+            text=f"AI {ai_number} Won!",
             font=("Impact", 40)
-        ).pack(pady=10)
+        ).pack(pady=20)
         
-        self.add_rematch_button(win_frame)
+        ctk.CTkButton(
+            win_frame,
+            text="Exit Game",
+            font=("Arial", 20),
+            command=lambda: self.game_frame.winfo_toplevel().destroy()
+        ).pack(pady=20)
 
     def add_rematch_button(self, frame):
         """Add rematch and quit buttons to win/lose screen"""
